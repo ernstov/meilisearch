@@ -1,0 +1,112 @@
+namespace: meilisearch
+
+meilisearch:
+  defines: runnable
+  metadata:
+    name: meilisearch
+    description: A full-text search database service
+    icon: https://emojiapi.dev/api/v1/robot.svg
+  containers:
+    meilisearch:
+      image: getmeili/meilisearch:v0.25.2
+      build: .
+  services:
+    meilisearch-http:
+      description: HTTP port for MeiliSearch API
+      container: meilisearch
+      port: $meili-port
+      host-port: $meili-port
+      publish: true
+      protocol: tcp
+  connections:
+    meilisearch-to-scraper:
+      target: meilisearch/scraper
+      service: ''
+      optional: true
+      description: MeiliSearch provides search capabilities to the scraper service
+  variables:
+    http-proxy:
+      env: http_proxy
+      type: string
+      value: ''
+      description: Proxy for HTTP requests
+    https-proxy:
+      env: https_proxy
+      type: string
+      value: ''
+      description: Proxy for HTTPS requests
+    meili-master-key:
+      env: MEILI_MASTER_KEY
+      type: string
+      value: masterKey
+      description: Master key for MeiliSearch authentication
+    meili-no-analytics:
+      env: MEILI_NO_ANALYTICS
+      type: bool
+      value: 'true'
+      description: Disable analytics tracking
+    meili-env:
+      env: MEILI_ENV
+      type: string
+      value: development
+      description: Environment for MeiliSearch
+    meili-log-level:
+      env: MEILI_LOG_LEVEL
+      type: string
+      value: info
+      description: Log level for MeiliSearch
+    meili-db-path:
+      env: MEILI_DB_PATH
+      type: string
+      value: /data.ms
+      description: Database path for MeiliSearch
+    meili-port:
+      env: MEILI_PORT
+      type: int
+      value: <- connection-port("meilisearch-to-scraper")
+      description: Port for MeiliSearch
+
+scraper:
+  defines: runnable
+  metadata:
+    name: scraper
+    description: A service to scrape documentation and index it in MeiliSearch
+    icon: https://emojiapi.dev/api/v1/robot.svg
+  containers:
+    scraper:
+      image: getmeili/docs-scraper:v0.12.0
+      build: .
+  services: {}
+  connections:
+    meilisearch-connection:
+      target: meilisearch/meilisearch
+      service: meilisearch-http
+      optional: true
+      description: Connection from scraper service to MeiliSearch service
+  variables:
+    http-proxy:
+      env: http_proxy
+      type: string
+      value: ''
+      description: HTTP proxy for the scraper service
+    https-proxy:
+      env: https_proxy
+      type: string
+      value: ''
+      description: HTTPS proxy for the scraper service
+    meilisearch-host-url:
+      env: MEILISEARCH_HOST_URL
+      type: string
+      value: <- connection-hostname("meilisearch-connection")
+      description: URL of the MeiliSearch service
+    meilisearch-api-key:
+      env: MEILISEARCH_API_KEY
+      type: string
+      value: masterKey
+      description: API key for the MeiliSearch service
+
+stack:
+  defines: group
+  members:
+    - meilisearch/meilisearch
+    - meilisearch/scraper
